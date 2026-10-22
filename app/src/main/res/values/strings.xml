@@ -1,4 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">AdAutoCloser</string>
+    <string name="screen_instruction">ユーザー補助設定でAdAutoCloserを有効にしてください</string>
+    <string name="btn_open_settings">設定を開く</string>
+    <string name="service_desc">広告の閉じるボタンを自動でタップします</string>
 </resources>
