@@ -24,7 +24,7 @@ jobs:
 
     - name: Generate Wrapper and Build APK
       run: |
-        gradle wrapper
+        gradle wrapper --gradle-version 8.6
         ./gradlew assembleDebug --stacktrace
 
     - name: Upload Debug APK
