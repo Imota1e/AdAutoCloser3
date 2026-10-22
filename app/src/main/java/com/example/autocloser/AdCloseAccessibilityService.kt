@@ -6,45 +6,72 @@ import android.view.accessibility.AccessibilityNodeInfo
 
 class AdCloseAccessibilityService : AccessibilityService() {
 
-    private val closeKeywords = listOf(
-        "閉じる", "スキップ", "×", "✕", "✖", "close", "skip"
+    private var lastClickTime = 0L
+
+    private val targetTexts = listOf(
+        "閉じる", "スキップ", "広告をスキップ",
+        "Close", "Skip", "Skip Ad", "Dismiss",
+        "×", "✕", "✖", "⨯", "X"
+    )
+
+    private val targetIdKeywords = listOf(
+        "close", "skip", "dismiss", "btn_close", "ad_close", "close_button"
     )
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
+        val now = System.currentTimeMillis()
+        if (now - lastClickTime < 800) return
+
         val rootNode = rootInActiveWindow ?: return
-        findAndClick(rootNode)
+        if (rootNode.packageName?.toString() == packageName) return
+
+        if (searchAndClick(rootNode)) {
+            lastClickTime = now
+        }
     }
 
-    private fun findAndClick(node: AccessibilityNodeInfo): Boolean {
-        val text = node.text?.toString()?.trim()?.lowercase()
-        val desc = node.contentDescription?.toString()?.trim()?.lowercase()
+    private fun searchAndClick(node: AccessibilityNodeInfo?): Boolean {
+        if (node == null) return false
 
-        for (keyword in closeKeywords) {
-            val kw = keyword.lowercase()
-            val matchText = text != null && (text == kw || text == kw.uppercase())
-            val matchDesc = desc != null && desc.contains(kw)
-
-            if (matchText || matchDesc) {
-                if (node.isClickable) {
-                    node.performAction(AccessibilityNodeInfo.ACTION_CLICK)
-                    return true
-                }
-                var parent = node.parent
-                while (parent != null) {
-                    if (parent.isClickable) {
-                        parent.performAction(AccessibilityNodeInfo.ACTION_CLICK)
-                        return true
-                    }
-                    parent = parent.parent
-                }
+        if (node.isVisibleToUser && isTargetNode(node)) {
+            if (performClick(node)) {
+                return true
             }
         }
 
         for (i in 0 until node.childCount) {
-            val child = node.getChild(i) ?: continue
-            if (findAndClick(child)) {
+            if (searchAndClick(node.getChild(i))) {
                 return true
             }
+        }
+        return false
+    }
+
+    private fun isTargetNode(node: AccessibilityNodeInfo): Boolean {
+        val text = node.text?.toString()?.trim() ?: ""
+        val desc = node.contentDescription?.toString()?.trim() ?: ""
+        val viewId = node.viewIdResourceName?.lowercase() ?: ""
+
+        if (targetTexts.any { text.equals(it, ignoreCase = true) || desc.equals(it, ignoreCase = true) }) {
+            return true
+        }
+
+        if (targetIdKeywords.any { viewId.contains(it) }) {
+            return true
+        }
+
+        return false
+    }
+
+    private fun performClick(node: AccessibilityNodeInfo): Boolean {
+        var current: AccessibilityNodeInfo? = node
+        var depth = 0
+        while (current != null && depth < 4) {
+            if (current.isClickable) {
+                return current.performAction(AccessibilityNodeInfo.ACTION_CLICK)
+            }
+            current = current.parent
+            depth++
         }
         return false
     }
