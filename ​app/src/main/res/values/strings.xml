@@ -1,0 +1,7 @@
+<resources>
+    <string name="app_name">AdAutoCloser</string>
+    <string name="service_label">広告自動クローザー</string>
+    <string name="service_desc">画面上に表示される「閉じる」「×」「スキップ」等の要素を検知してタップします。</string>
+    <string name="screen_instruction">本アプリを利用するには、以下のボタンから「ユーザー補助」を開き、「広告自動クローザー」をONにしてください。</string>
+    <string name="btn_open_settings">ユーザー補助設定を開く</string>
+</resources>
