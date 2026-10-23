@@ -8,19 +8,17 @@ class AdCloseAccessibilityService : AccessibilityService() {
 
     private var lastClickTime = 0L
 
-    // 検出対象のテキスト・説明ラベル
-    private val targetTexts = listOf(
+    // 検出したいキーワード（一部に含まれていればヒットするようにします）
+    private val targetKeywords = listOf(
         "閉じる", "スキップ", "広告をスキップ",
         "Close", "Skip", "Skip Ad", "Dismiss",
-        "×", "✕", "✖", "⨯", "X"
+        "×", "✕", "✖", "⨯", "X", "報酬"
     )
 
-    // 検出対象のボタンIDキーワード
     private val targetIdKeywords = listOf(
         "close", "skip", "dismiss", "btn_close", "ad_close", "close_button"
     )
 
-    // 動作させないアプリ（ホーム画面やシステム）のパッケージ名キーワード
     private val ignoredPackages = listOf(
         "launcher", "trebuchet", "miui", "home", "settings", 
         "packageinstaller", "systemui", "pixel"
@@ -29,20 +27,17 @@ class AdCloseAccessibilityService : AccessibilityService() {
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
         if (event == null) return
 
-        // 画面の変更やウィンドウ状態の切り替わり時のみ反応させる
         if (event.eventType != AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED &&
             event.eventType != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
             return
         }
 
         val now = System.currentTimeMillis()
-        // 連続クリックによる暴走を防ぐため、間隔を2秒に広げる
-        if (now - lastClickTime < 2000) return
+        if (now - lastClickTime < 1500) return
 
         val rootNode = rootInActiveWindow ?: return
         val pkg = rootNode.packageName?.toString()?.lowercase() ?: ""
 
-        // 自アプリやホーム画面、システム画面では絶対に動作させない
         if (pkg == packageName.lowercase() || ignoredPackages.any { pkg.contains(it) }) {
             return
         }
@@ -74,10 +69,11 @@ class AdCloseAccessibilityService : AccessibilityService() {
         val desc = node.contentDescription?.toString()?.trim() ?: ""
         val viewId = node.viewIdResourceName?.lowercase() ?: ""
 
-        // 長すぎるテキストは誤爆の元なので除外
-        if (text.length > 15 || desc.length > 15) return false
+        // 長すぎる文章は除外（ただし「報酬を獲得しました ✕」などを拾うため少し長さを許容）
+        if (text.length > 30 || desc.length > 30) return false
 
-        if (targetTexts.any { text.equals(it, ignoreCase = true) || desc.equals(it, ignoreCase = true) }) {
+        // 部分一致（contains）に変更し、文字の中にキーワードが含まれていれば検知
+        if (targetKeywords.any { text.contains(it, ignoreCase = true) || desc.contains(it, ignoreCase = true) }) {
             return true
         }
 
@@ -91,14 +87,15 @@ class AdCloseAccessibilityService : AccessibilityService() {
     private fun performClick(node: AccessibilityNodeInfo): Boolean {
         var current: AccessibilityNodeInfo? = node
         var depth = 0
-        while (current != null && depth < 4) {
+        while (current != null && depth < 5) {
             if (current.isClickable) {
                 return current.performAction(AccessibilityNodeInfo.ACTION_CLICK)
             }
             current = current.parent
             depth++
         }
-        return false
+        // もし親階層にクリック可能な要素がない場合でも、ノード自体に直接クリックを試みる
+        return node.performAction(AccessibilityNodeInfo.ACTION_CLICK)
     }
 
     override fun onInterrupt() {}
